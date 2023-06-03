@@ -1,0 +1,193 @@
+external_components:
+  - source: github://GrKoR/esphome_aux_ac_component
+    components: [ aux_ac ]
+    refresh: 0s
+
+esphome:
+  name: new_ac
+esp32:
+  board: esp32doit-devkit-v1
+  framework:
+    type: arduino
+
+# don't forget to set your's wifi settings!
+wifi:
+  ssid: "WIFI SSID"
+  password: "seCRETpassWORD"
+  ap:
+    ssid: AUX Hotspot
+    password: "seCREThotSPOTpassWORD"
+
+captive_portal:
+debug:
+
+logger:
+    level: DEBUG
+    baud_rate: 0
+
+api:
+ota:
+web_server:
+  port: 80
+
+# UART0 configuration for AUX air conditioner communication
+uart:
+  id: ac_uart_bus
+  # ATTENTION! Use GPIO4 (D2) and GPIO5 (D1) as the TX and RX for NodeMCU-like boards!
+  tx_pin: GPIO19
+  rx_pin: GPIO21
+  baud_rate: 4800
+  data_bits: 8
+  parity: EVEN
+  stop_bits: 1
+
+climate:
+  - platform: aux_ac
+    name: Coud Fusion
+    id: aux_id
+    uart_id: ac_uart_bus
+    period: 7s
+    show_action: true
+    display_inverted: true
+  
+    display_state:
+      # name: дисплей
+      name: display_state
+      id: new_ac_display_state
+      internal: false
+
+    indoor_temperature:
+      # name: температура внутри
+      name: temp air indoor
+      id: new_ac_indoor_temp
+      internal: false      
+    outdoor_temperature:
+      # name: температура снаружи
+      name: temp air outdoor
+      id: new_ac_outdoor_temp
+      internal: false
+    outbound_temperature:
+      # name: температура на обратке 
+      name: temp outbound
+      id: new_ac_outbound_temp
+      internal: false
+    inbound_temperature:
+      # name: температура на подаче 
+      name: temp inbound 
+      id: new_ac_inbound_temp
+      internal: false
+    compressor_temperature:
+      # name: температура компрессора
+      name: temp strange
+      id: new_ac_strange_temp
+      internal: false
+    defrost_state:
+      # name: состояние разморозки
+      name: defrost_state 
+      id: new_ac_defrost_state
+      internal: false
+    inverter_power:
+      # name: состояние функции ограничения мощности
+      name: inverter_power
+      id: new_ac_inverter_power
+      internal: false
+    inverter_power_limit_value:
+      # name: ограничения мощности
+      name: inverter_power_limit_value
+      id: new_ac_inverter_power_limit_value
+      internal: false
+    preset_reporter:
+      # name: текущий активный пресет
+      name: preset_reporter
+      id: new_ac_preset_reporter
+      internal: false
+    vlouver_state:
+      # name: Вертикальное жалюзи
+      name: vlouver state
+      id: new_ac_vlouver_state
+      internal: false
+    visual:
+      min_temperature: 16
+      max_temperature: 32
+      temperature_step: 0.5
+      
+    supported_modes:
+      - HEAT_COOL
+      - COOL
+      - HEAT
+      - DRY
+      - FAN_ONLY
+    custom_fan_modes:
+      - MUTE
+      - TURBO
+    supported_presets:
+      - SLEEP
+    custom_presets:
+      - CLEAN
+      - HEALTH
+      - ANTIFUNGUS
+    supported_swing_modes:
+      - VERTICAL
+      - HORIZONTAL
+      - BOTH
+
+
+
+switch:
+  - platform: template
+    name: display
+    lambda: |-
+      if (id(new_ac_display_state).state) {
+        return true;
+      } else {
+        return false;
+      }
+    turn_on_action:
+      - aux_ac.display_on: aux_id
+    turn_off_action:
+      - aux_ac.display_off: aux_id
+
+button:
+  - platform: template
+    name: vlouver swing stop 
+    icon: "mdi:circle-small"
+    on_press:
+      - aux_ac.vlouver_stop: aux_id
+    
+  - platform: template
+    name: vlouver swing start 
+    icon: "mdi:pan-vertical"
+    on_press:
+      - aux_ac.vlouver_swing: aux_id
+  
+
+number:
+  - platform: template
+    name: vlouver state set 0-up  6-down
+    id: new_ac_vlouver
+    icon: "mdi:circle-small"
+    mode: "slider"
+    min_value: 0
+    max_value: 6
+    step: 1
+    update_interval: 2s
+    lambda: |-
+      return id(new_ac_vlouver_state).state;
+    set_action:
+      then:
+        - aux_ac.vlouver_set:
+            id: aux_id
+            position: !lambda "return x;"
+
+  # - platform: template
+  #   name: power li
+  #   id: inverter power limit setup
+  #   icon: "mdi:battery-unknown"
+  #   mode: "slider"
+  #   min_value: 30
+  #   max_value: 100
+  #   step: 1
+  #   set_action:
+  #     then:
+  #       - lambda: !lambda |-
+  #           id(aux_id).powerLimitationOnSequence( x );
